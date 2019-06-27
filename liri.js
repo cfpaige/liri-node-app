@@ -8,7 +8,9 @@ let Spotify = require("node-spotify-api");
 
 let spotify = new Spotify(keys.Spotify);
 
-var moment = require("moment");
+let omdbKey = keys.omdb.key;
+
+let bitId = keys.bit.id;
 
 var request = require("request");
 
@@ -67,6 +69,11 @@ command = process.argv[2];
 
 var queryTerm = process.argv.slice(3).join(" ");
 
+// to make console display and reading log.text easier:
+
+var divider = "\n------------------------------------------------------------\n";
+var divBold = "\n============================================================\n";
+
 // controller function that determines what action is taken, and what data is needed to complete the action:
 
 searchThis(command, queryTerm);
@@ -77,26 +84,48 @@ searchThis(command, queryTerm);
 
 function concertThis(bandName) {
     if (!bandName) {
-        logOutput("Nope. Nothing here.");
+        logOutput("Ah, the sound of silence...");
     }
-var bitUrl = "https://rest.bandsintown.com/artists/" + bandName + "/events?app_id=codingbootcamp";
+    var bitUrl = "https://rest.bandsintown.com/artists/" + bandName + "/events?app_id=" + bitId;
 
-request(bitUrl, function(err, res, body) {
-    if (err) {
-        logOutput('Error occurred: ' + err);
-        return;
-    } else {
-        if (!err && res.statusCode === 200) {
-            var jsonData = JSON.parse(body);
-            // var eventDate =
-            console.log("=====================================================================")
-            logOutput("Venue: " + jsonData.venue.name)
-            logOutput("Location: " + jsonData.venue.city)
-            // logOutput("Date: " + eventDate + )
-            console.log("=====================================================================")
+    request(bitUrl, function (err, res, body) {
+        if (err) {
+            logOutput('Error occurred: ' + err);
+            return;
+        } else {
+            if (!err && res.statusCode === 200) {
+                var jsonData = JSON.parse(body);
+                // clause to prevent "undefined" when no concerts scheduled:
+                if (!jsonData[0]) {
+                    console.log("Nope, not playing anywhere.");
+                    return;
+                } else {
+                    // parses the date from BiT into required format (there must be a better way):
+                    var bitDate = jsonData[0].datetime.slice(0, 10);
+                    bitDate = bitDate.split("-");
+                    bitDate = [bitDate[1], bitDate[2],bitDate[0]];
+                    var eventDate = bitDate.join("/");
+
+                    var concertInfo = [
+                        "Venue: " + jsonData[0].venue.name,
+                        "In: " + jsonData[0].venue.city,
+                        "On: " + eventDate
+                    ].join("\n\n");
+                    console.log(divBold);
+                    console.log("ROCK ON!");
+                    console.log(divider);
+                    console.log(concertInfo);
+                    console.log(divBold);
+                    fs.appendFileSync("log.txt", concertInfo + divider, function (err) {
+                        if (err) throw err;
+                        logOutput('Error occurred: ' + err);
+                    });
+                    // // var eventDate =
+                }
+            }
         }
-    }}
-)};
+    })
+};
 
 function spotifyThis(songName) {
     // if there is no song name, go to default:
@@ -108,13 +137,21 @@ function spotifyThis(songName) {
             logOutput('Error occurred: ' + err);
             return;
         } else {
-            console.log("=====================================================================")
-            console.log("YEAH!!! YOU HAVE A GREAT TASTE IN MUSIC!")
-            logOutput("This is by: " + data.tracks.items[0].album.artists[0].name)
-            logOutput("The song's name is: " + songName.toUpperCase())
-            logOutput("You can preview it on Spotify here: " + data.tracks.items[0].album.external_urls.spotify)
-            logOutput("It's from the album: " + data.tracks.items[0].album.name)
-            console.log("=====================================================================")
+            var songInfo = [
+                "This is by: " + data.tracks.items[0].album.artists[0].name,
+                "The song's name is: " + songName.toUpperCase(),
+                "You can preview it on Spotify here: " + data.tracks.items[0].album.external_urls.spotify,
+                "It's from the album: " + data.tracks.items[0].album.name
+            ].join("\n\n");
+            console.log(divBold);
+            console.log("YEAH!!! YOU HAVE A GREAT TASTE IN MUSIC!");
+            console.log(divider);
+            console.log(songInfo);
+            console.log(divBold);
+            fs.appendFileSync("log.txt", songInfo + divider, function(err) {
+                if (err) throw err;
+                logOutput('Error occurred: ' + err);
+            });
         }
     })
 };
@@ -125,29 +162,39 @@ function omdbThis(movieName) {
     }
     //for the function to work, you will need to apply for your own OMDB API key
     // t = movietitle, y = year, plot is short, then the API key
-    var omdbUrl = "http://www.omdbapi.com/?t=" + movieName + "&y=&plot=short&apikey=" + process.env.OMDB_KEY;
+    
+    var omdbUrl = "http://www.omdbapi.com/?t=" + movieName + "&y=&plot=short&apikey=" + omdbKey;
 
     request(omdbUrl, function(err, res, body) {
-        if (err) {
+        if (!err && res.statusCode === 200) {
             logOutput('Error occurred: ' + err);
             return;
         } else {
             var jsonData = JSON.parse(body);
-            console.log("=====================================================================")
-            console.log("AWESOME MOVIE!")
-            logOutput("Title: " + jsonData.Title)
-            logOutput("Year: " + jsonData.Year)
-            logOutput("Rated: " + jsonData.Rated)
-            logOutput("IMDB Rating: " + jsonData.imdbRating)
-            logOutput("Rotten Tomatoes Rating: " + jsonData.Ratings[1].Value)
-            logOutput("Country: " + jsonData.Country)
-            logOutput("Language: " + jsonData.Language)
-            logOutput("Plot: " + jsonData.Plot)
-            logOutput("Actors: " + jsonData.Actors)
-            console.log("=====================================================================")
-        }
+            var movieInfo = [
+                "Title: " + jsonData.Title + "\n",
+                "Year: " + jsonData.Year,
+                "Rated: " + jsonData.Rated,
+                "IMDB Rating: " + jsonData.imdbRating,
+                // RT rating won't work without the index:
+                "Rotten Tomatoes Rating: " + jsonData.Ratings[1].Value,
+                "Country: " + jsonData.Country,
+                "Language: " + jsonData.Language,
+                "Plot: " + jsonData.Plot,
+                "Actors: " + jsonData.Actors
+            ].join("\n\n");
+            console.log(divBold);
+            console.log("AWESOME MOVIE!");
+            console.log(divider);
+            console.log(movieInfo);
+            console.log(divBold);
+            fs.appendFileSync("log.txt", movieInfo + divider, function(err) {
+                if (err) throw err;
+                logOutput('Error occurred: ' + err);
+            });
+        };
     });
-};
+};      
 
 function doRandom() {
     fs.readFile("random.txt", "utf8", function(err, data) {
@@ -202,5 +249,4 @@ function searchThis(command, queryTerm) {
 // log data to the terminal and output to a text file:
 function logOutput(logText) {
 	log.info(logText);
-	// console.log(logText);
 };
