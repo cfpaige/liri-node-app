@@ -17,12 +17,9 @@
   },
   "homepage": "https://github.com/cfpaige/liri-node-app#readme",
   "dependencies": {
-    "axios": "^0.19.0",
+    "date-fns": "^1.30.1",
     "dotenv": "^8.0.0",
-    "inquirer": "^6.4.1",
-    "moment": "^2.24.0",
     "node-spotify-api": "^1.1.1",
-    "omdb": "^0.8.0",
     "request": "^2.88.0",
     "simple-node-logger": "^18.12.22"
   }

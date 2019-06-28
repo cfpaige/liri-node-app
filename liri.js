@@ -14,6 +14,8 @@ let bitId = keys.bit.id;
 
 var request = require("request");
 
+var datefns = require("date-fns");
+
 // to log the results of all queries:
 
 const log = require('simple-node-logger').createSimpleLogger();
@@ -28,34 +30,17 @@ var fs = require("fs");
 
 // commands for liri:
 
-//     concert-this
+//     concert-this:
 //         search format: node liri.js concert-this <artist/band name here>
-//         search the Bands in Town Artist Events API and return:
-//             Name of the venue
-//             Venue location
-//             Date of the Event (use moment to format this as "MM/DD/YYYY")
+//         source: Bands in Town Artist Events API 
 
 //     spotify-this-song:
 //         search format: node liri.js spotify-this-song <song name here>
-//         search Spotify API and return:
-//             Artist(s)
-//             The song's name
-//             A preview link of the song from Spotify
-//             The album that the song is from
-//         if no song is provided, default to "The Sign" by Ace of Base
+//         source: Spotify API
 
 //     movie-this:
 //         search format: node liri.js movie-this <movie name here>
-//         search OMDB API and return:
-//             Title of the movie
-//             Year the movie came out
-//             IMDB Rating of the movie
-//             Rotten Tomatoes Rating of the movie
-//             Country where the movie was produced
-//             Language of the movie
-//             Plot of the movie
-//             Actors in the movie
-//         if no movie provided, default to "Mr Nobody"
+//         source: OMDB API
 
 //     do-what-it-says
 //         search format: node liri.js do-what-it-says
@@ -84,7 +69,7 @@ searchThis(command, queryTerm);
 
 function concertThis(bandName) {
     if (!bandName) {
-        logOutput("Ah, the sound of silence...");
+        logOutput("\n Ah, the sweet sound of silence... \n");
     }
     var bitUrl = "https://rest.bandsintown.com/artists/" + bandName + "/events?app_id=" + bitId;
 
@@ -97,26 +82,26 @@ function concertThis(bandName) {
                 var jsonData = JSON.parse(body);
                 // clause to prevent "undefined" when no concerts scheduled:
                 if (!jsonData[0]) {
-                    console.log("Nope, not playing anywhere.");
+                    console.log("\n Sorry, not playing anywhere. \n");
                     return;
                 } else {
-                    // parses the date from BiT into required format (there must be a better way):
-                    var bitDate = jsonData[0].datetime.slice(0, 10);
-                    bitDate = bitDate.split("-");
-                    bitDate = [bitDate[1], bitDate[2],bitDate[0]];
-                    var eventDate = bitDate.join("/");
+                    // kudos to DRogalsky (https://github.com/DRogalsky) for this one, because my solution was five lines long:
+                    var eventDate = datefns.format(jsonData[0].datetime, format = 'MM/DD/YYYY')
+
+                    var queryTermCaps = queryTerm.toUpperCase();
 
                     var concertInfo = [
-                        "Venue: " + jsonData[0].venue.name,
+                        "At: " + jsonData[0].venue.name,
                         "In: " + jsonData[0].venue.city,
                         "On: " + eventDate
                     ].join("\n\n");
                     console.log(divBold);
-                    console.log("ROCK ON!");
-                    console.log(divider);
+                    console.log(queryTermCaps + " is playing next: \n\n");
                     console.log(concertInfo);
+                    console.log(divider);
+                    console.log("ROCK ON!");
                     console.log(divBold);
-                    fs.appendFileSync("log.txt", concertInfo + divider, function (err) {
+                    fs.appendFileSync("log.txt", queryTermCaps + " is playing next: \n\n" + concertInfo + divider + "\n\n", function (err) {
                         if (err) throw err;
                         logOutput('Error occurred: ' + err);
                     });
@@ -132,7 +117,7 @@ function spotifyThis(songName) {
     if (!songName) {
         songName = "The Sign";
     }
-    spotify.search({ type: 'track', query: songName }, function(err, data) {
+    spotify.search({ type: 'track', query: songName }, function (err, data) {
         if (err) {
             logOutput('Error occurred: ' + err);
             return;
@@ -148,9 +133,10 @@ function spotifyThis(songName) {
             console.log(divider);
             console.log(songInfo);
             console.log(divBold);
-            fs.appendFileSync("log.txt", songInfo + divider, function(err) {
+            fs.appendFileSync("log.txt", songInfo + divider + "\n\n", function (err) {
                 if (err) throw err;
                 logOutput('Error occurred: ' + err);
+
             });
         }
     })
@@ -162,14 +148,15 @@ function omdbThis(movieName) {
     }
     //for the function to work, you will need to apply for your own OMDB API key
     // t = movietitle, y = year, plot is short, then the API key
-    
+
     var omdbUrl = "http://www.omdbapi.com/?t=" + movieName + "&y=&plot=short&apikey=" + omdbKey;
 
-    request(omdbUrl, function(err, res, body) {
-        if (!err && res.statusCode === 200) {
+    request(omdbUrl, function (err, res, body) {
+        if (err) {
             logOutput('Error occurred: ' + err);
             return;
         } else {
+            if (!err && res.statusCode === 200) {
             var jsonData = JSON.parse(body);
             var movieInfo = [
                 "Title: " + jsonData.Title + "\n",
@@ -188,33 +175,33 @@ function omdbThis(movieName) {
             console.log(divider);
             console.log(movieInfo);
             console.log(divBold);
-            fs.appendFileSync("log.txt", movieInfo + divider, function(err) {
+            fs.appendFileSync("log.txt", movieInfo + divider + "\n\n", function (err) {
                 if (err) throw err;
                 logOutput('Error occurred: ' + err);
             });
-        };
+        }};
     });
-};      
+};
 
 function doRandom() {
-    fs.readFile("random.txt", "utf8", function(err, data) {
-		if (err) {
+    fs.readFile("random.txt", "utf8", function (err, data) {
+        if (err) {
             logOutput('Error occurred: ' + err);
-		} else {
+        } else {
 
-			// creates array with data:
-			var randomArray = data.split(",");
+            // creates array with data:
+            var randomArray = data.split(",");
 
-			// sets command to first item in array:
-			command = randomArray[0];
+            // sets command to first item in array:
+            command = randomArray[0];
 
-			// sets queryTerm to second item in the array:
-			queryTerm = randomArray[1];
+            // sets queryTerm to second item in the array:
+            queryTerm = randomArray[1];
 
-			// calls main controller function to render the result:
+            // calls main controller function to render the result:
             searchThis(command, queryTerm);
         }
-	});
+    });
 };
 
 // main search logic:
@@ -222,31 +209,31 @@ function doRandom() {
 function searchThis(command, queryTerm) {
 
     switch (command) {
-  
+
         case "concert-this":
-        concertThis(queryTerm);
-        break;                          
-  
+            concertThis(queryTerm);
+            break;
+
         case "spotify-this-song":
-        spotifyThis(queryTerm);
-        break;
-  
+            spotifyThis(queryTerm);
+            break;
+
         case "movie-this":
-        omdbThis(queryTerm);
-        break;
-  
+            omdbThis(queryTerm);
+            break;
+
         case "do-what-it-says":
-        doRandom();
-        break;
-  
-        default:                            
-        display("Not a valid search term.");
-        break;
+            doRandom();
+            break;
+
+        default:
+            console.log("\n Not a valid search term. Use 'concert-this', 'spotify-this-song', 'movie-this' or 'do-what-it-says' instead.");
+            break;
     }
-};  
+};
 
 
 // log data to the terminal and output to a text file:
 function logOutput(logText) {
-	log.info(logText);
+    log.info(logText);
 };
